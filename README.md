@@ -53,10 +53,87 @@ Follow these steps during your live demo to tell the pitch story:
    - Ask the audience: *"What if we approved a Confined Space permit during Node-A's Night Shift while H2S gas levels were slightly elevated (~30 ppm)?"*
    - Adjust the sliders/toggles:
      - Check **Confined Space Entry**.
-     - Set Gas to **30 ppm**.
-     - Set Shift to **Night** with **1 Supervisor**.
-   - Click **"Execute Sandbox Evaluation"**.
-   - Show the comparison: **Live Risk (~10% Green) vs. Simulated Risk (~75% Red)**. Explain how they just saved a lives by scheduling the work during a day shift.
-5. **Audit PDF Export**:
-   - Click **"Export Audit PDF"**.
-   - Instantly download and open the generated PDF report, illustrating a real-world supervisor log with timestamps, compound justifications, and signatures.
+   # SafeSphere AI 🛡️
+
+   SafeSphere AI is a predictive industrial safety intelligence platform that fuses IoT telemetry, AI vision alerts, permit workflows, and human supervision signals into a real-time Compound Risk Engine.
+
+   Key benefits:
+   - Proactively surface compound hazards before incidents
+   - Natural-language safety audits and exportable evidence
+   - Interactive "What‑If" simulator for operational planning
+
+   ---
+
+   ## Quick Start
+
+   Requirements: Node 18+ and npm.
+
+   Backend (API + realtime gateway):
+   ```bash
+   cd backend
+   npm install
+   npm start
+   ```
+   If you need LLM integrations (Anthropic / Google Gemini), add keys to `backend/.env` (examples below). If no keys are present, the app falls back to a local rule-based evaluator for demos.
+
+   Frontend (React + Vite dashboard):
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+   Default dev URLs:
+   - Frontend: http://localhost:5173
+   - Backend:  http://localhost:5000
+
+   ---
+
+   ## Environment Variables
+   - `GEMINI_API_KEY` — (optional) Google Gemini API key
+   - `ANTHROPIC_API_KEY` — (optional) Anthropic API key
+   - `PORT` — backend port (default: 5000)
+
+   Add keys to `backend/.env` like:
+   ```
+   GEMINI_API_KEY=your_key_here
+   ANTHROPIC_API_KEY=your_key_here
+   PORT=5000
+   ```
+
+   ---
+
+   ## Project Structure
+   - `/backend` — Node/Express API, Socket.IO gateway, risk engine
+   - `/frontend` — React + Vite dashboard UI
+
+   ---
+
+   ## Features / Highlights
+   - Real-time sensor fusion: gas, temperature, pressure, and CCTV
+   - Compound risk scoring (multiple signals -> single actionable score)
+   - Safety Copilot: concise, evidence-based natural-language reasoning
+   - What‑If Risk Simulator: test counterfactual scenarios safely
+   - Audit export: PDF reports with timestamps and rationales
+
+   ---
+
+   ## Demo Flow (short)
+   1. Open the frontend: http://localhost:5173 and show the plant overview.
+   2. Trigger an incident scenario (e.g., enable a Hot Work permit + elevated gas) and highlight the heatmap and score change.
+   3. Use Safety Copilot to explain the compound causes.
+   4. Run a What‑If simulation to compare live vs. simulated risk.
+   5. Export an audit PDF for evidence and follow-up.
+
+   ---
+
+   ## Contributing
+   - Fork and open a PR for bug fixes and enhancements.
+   - For schema or API changes, include migration notes in your PR.
+
+   ---
+
+   ## License & Contact
+   This repository is provided as-is for demo and development. For questions or collaboration requests, open an issue or contact the maintainer.
+
+   Enjoy exploring SafeSphere AI 🚀
