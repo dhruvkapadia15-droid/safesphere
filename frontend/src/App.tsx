@@ -31,6 +31,9 @@ import {
   Bell,
   TrendingUp,
   ArrowUpRight,
+  FlaskConical,
+  SlidersHorizontal,
+  Zap,
 } from 'lucide-react';
 
 // Interfaces
@@ -66,6 +69,16 @@ interface Permit {
   startTime: number;
   endTime: number;
   status: 'active' | 'expired' | 'pending';
+}
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  desc: string;
+  type: 'red' | 'yellow' | 'green' | 'blue';
+  time: string;
+  read: boolean;
+  zoneId?: string;
 }
 
 interface RiskAssessment {
@@ -134,29 +147,35 @@ const generatePrepopulatedHistory = (baselineValue: number, fluctuationRange: nu
   return history;
 };
 
-const getGasStatus = (val: number) => {
-  if (val > 50) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
-  if (val > 25) return { label: 'WARNING', color: 'text-amber-400 bg-amber-955/60 border border-amber-500/30' };
-  return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
-};
+// These are called with the thresholds from state — wrapped in factory so components below can use them
+const makeStatusHelpers = (thresholds: { gasCritical: number; gasWarning: number; tempCritical: number; tempWarning: number; pressCritical: number; pressWarning: number }) => ({
+  getGasStatus: (val: number) => {
+    if (val > thresholds.gasCritical) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
+    if (val > thresholds.gasWarning) return { label: 'WARNING', color: 'text-amber-400 bg-amber-955/60 border border-amber-500/30' };
+    return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
+  },
+  getTempStatus: (val: number) => {
+    if (val > thresholds.tempCritical) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
+    if (val > thresholds.tempWarning) return { label: 'WARNING', color: 'text-amber-400 bg-amber-950/60 border border-amber-500/30' };
+    return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
+  },
+  getPressStatus: (val: number) => {
+    if (val > thresholds.pressCritical) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
+    if (val > thresholds.pressWarning) return { label: 'WARNING', color: 'text-amber-400 bg-amber-950/60 border border-amber-500/30' };
+    return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-950/60 border border-emerald-500/20' };
+  },
+  getHumidStatus: (val: number) => {
+    if (val < 20 || val > 80) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
+    if (val < 30 || val > 70) return { label: 'WARNING', color: 'text-amber-400 bg-amber-955/60 border border-amber-500/30' };
+    return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
+  },
+});
 
-const getTempStatus = (val: number) => {
-  if (val < 10 || val > 55) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
-  if (val < 18 || val > 45) return { label: 'WARNING', color: 'text-amber-400 bg-amber-950/60 border border-amber-500/30' };
-  return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
-};
-
-const getPressStatus = (val: number) => {
-  if (val < 0.5 || val > 3.8) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
-  if (val < 0.8 || val > 2.5) return { label: 'WARNING', color: 'text-amber-400 bg-amber-950/60 border border-amber-500/30' };
-  return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-950/60 border border-emerald-500/20' };
-};
-
-const getHumidStatus = (val: number) => {
-  if (val < 20 || val > 80) return { label: 'CRITICAL', color: 'text-red-400 bg-red-955/65 border border-red-500/30' };
-  if (val < 30 || val > 70) return { label: 'WARNING', color: 'text-amber-400 bg-amber-955/60 border border-amber-500/30' };
-  return { label: 'NORMAL', color: 'text-emerald-400 bg-emerald-955/60 border border-emerald-500/20' };
-};
+// Default static versions (used before state loads)
+const getGasStatus = (val: number) => makeStatusHelpers({ gasCritical: 50, gasWarning: 25, tempCritical: 55, tempWarning: 45, pressCritical: 3.8, pressWarning: 2.5 }).getGasStatus(val);
+const getTempStatus = (val: number) => makeStatusHelpers({ gasCritical: 50, gasWarning: 25, tempCritical: 55, tempWarning: 45, pressCritical: 3.8, pressWarning: 2.5 }).getTempStatus(val);
+const getPressStatus = (val: number) => makeStatusHelpers({ gasCritical: 50, gasWarning: 25, tempCritical: 55, tempWarning: 45, pressCritical: 3.8, pressWarning: 2.5 }).getPressStatus(val);
+const getHumidStatus = (val: number) => makeStatusHelpers({ gasCritical: 50, gasWarning: 25, tempCritical: 55, tempWarning: 45, pressCritical: 3.8, pressWarning: 2.5 }).getHumidStatus(val);
 
 const getRiskBorder = (level: string) => {
   if (level === 'red') return 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)] bg-slate-950/80';
@@ -444,6 +463,96 @@ export default function App() {
   const [simIncidentType, setSimIncidentType] = useState('Gas Leak');
   const [simZoneId, setSimZoneId] = useState('zone-a');
 
+  // --- THRESHOLDS STATE (Settings tab) ---
+  const [thresholds, setThresholds] = useState({
+    gasCritical: 50,
+    gasWarning: 25,
+    tempCritical: 55,
+    tempWarning: 45,
+    pressCritical: 3.8,
+    pressWarning: 2.5,
+    humidCritical: 80,
+    humidWarning: 70,
+  });
+
+  // --- WHAT-IF SIMULATOR STATE ---
+  const [whatIfZoneId, setWhatIfZoneId] = useState('zone-c');
+  const [whatIfSensors, setWhatIfSensors] = useState({
+    gasLevel: 10,
+    temperature: 30,
+    pressure: 1.5,
+    humidity: 45,
+  });
+  const [whatIfDetections, setWhatIfDetections] = useState({
+    helmetDetected: true,
+    vestDetected: true,
+    inRestrictedZone: false,
+  });
+  const [whatIfPermits, setWhatIfPermits] = useState({
+    hotWork: false,
+    confinedSpace: false,
+  });
+  const [whatIfShift, setWhatIfShift] = useState({
+    type: 'day' as 'day' | 'night' | 'transition',
+    supervisorCount: 3,
+  });
+  const [whatIfResult, setWhatIfResult] = useState<null | {
+    riskScore: number;
+    riskLevel: 'green' | 'yellow' | 'red';
+    reasons: string[];
+    recommendedActions: string[];
+  }>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [whatIfExecuted, setWhatIfExecuted] = useState(false);
+
+  // --- NOTIFICATIONS STATE ---
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    { id: '1', title: 'Zone C Pressure Spike', desc: 'Line pressure reached 3.8 bar warning threshold', type: 'red', time: '5m ago', read: false, zoneId: 'zone-c' },
+    { id: '2', title: 'PPE Hard Helmet Alert', desc: '1 worker missing hard helmet in Zone A', type: 'yellow', time: '12m ago', read: false, zoneId: 'zone-a' },
+    { id: '3', title: 'Hot Work Permit Approved', desc: 'Permit #HW-012 granted for Zone B', type: 'green', time: '25m ago', read: true, zoneId: 'zone-b' },
+    { id: '4', title: 'Shift Handover Complete', desc: 'Day Shift registered with 3 Supervisors', type: 'blue', time: '40m ago', read: true },
+  ]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement | null>(null);
+
+  // --- SHIFT MANAGEMENT STATE ---
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [newShiftType, setNewShiftType] = useState<'day' | 'night' | 'transition'>('day');
+  const [newShiftSupervisors, setNewShiftSupervisors] = useState<number>(3);
+
+  const addNotification = (item: Omit<NotificationItem, 'id' | 'read'>) => {
+    setNotifications(prev => [
+      { ...item, id: Date.now().toString() + Math.random().toString(36).substring(2, 5), read: false },
+      ...prev.slice(0, 19)
+    ]);
+  };
+
+  // Permit Auto-Expiry Cleanup Job (runs every 10s)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setPermitsList(prev => {
+        let hasChanges = false;
+        const updated = prev.map(p => {
+          if (p.status === 'active' && p.endTime <= now) {
+            hasChanges = true;
+            addNotification({
+              title: `Permit Auto-Expired: ${p.type}`,
+              desc: `Permit duration window elapsed for ${p.zoneId.toUpperCase()}`,
+              type: 'yellow',
+              time: 'Just now',
+              zoneId: p.zoneId
+            });
+            return { ...p, status: 'expired' as const };
+          }
+          return p;
+        });
+        return hasChanges ? updated : prev;
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [isIncidentDropdownOpen, setIsIncidentDropdownOpen] = useState(false);
   const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
   const incidentDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -456,6 +565,9 @@ export default function App() {
       }
       if (zoneDropdownRef.current && !zoneDropdownRef.current.contains(event.target as Node)) {
         setIsZoneDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -516,20 +628,58 @@ export default function App() {
 
     socket.on('zone-risk-update', (data: { zoneId: string; zone: Zone; assessment: RiskAssessment }) => {
       setZones(prev => prev.map(z => z.id === data.zoneId ? { ...z, latestAssessment: data.assessment, riskLevel: data.assessment.riskLevel } : z));
+      if (data.assessment.riskLevel === 'red' || data.assessment.riskLevel === 'yellow') {
+        const zoneName = data.zoneId === 'zone-a' ? 'Zone A' : data.zoneId === 'zone-b' ? 'Zone B' : 'Zone C';
+        setNotifications(prev => {
+          if (prev.some(n => n.zoneId === data.zoneId && n.time === 'Just now')) return prev;
+          return [
+            {
+              id: Date.now().toString(),
+              title: `${zoneName} Risk Escalated (${data.assessment.riskLevel.toUpperCase()})`,
+              desc: data.assessment.reasons[0] || `Risk score reached ${data.assessment.riskScore}%`,
+              type: data.assessment.riskLevel as 'red' | 'yellow',
+              time: 'Just now',
+              read: false,
+              zoneId: data.zoneId
+            },
+            ...prev.slice(0, 19)
+          ];
+        });
+      }
     });
 
     socket.on('permit-created', (newPermit: Permit) => {
       setPermitsList(prev => [...prev.filter(p => p.id !== newPermit.id), newPermit]);
       setZones(prev => prev.map(z => z.id === newPermit.zoneId ? { ...z, activePermits: [...z.activePermits.filter(p => p.id !== newPermit.id), newPermit] } : z));
+      addNotification({
+        title: `Permit Issued: ${newPermit.type}`,
+        desc: `New active work permit logged for ${newPermit.zoneId.toUpperCase()}`,
+        type: 'green',
+        time: 'Just now',
+        zoneId: newPermit.zoneId
+      });
     });
 
     socket.on('permit-expired', (permit: Permit) => {
       setPermitsList(prev => prev.map(p => p.id === permit.id ? permit : p));
       setZones(prev => prev.map(z => z.id === permit.zoneId ? { ...z, activePermits: z.activePermits.map(p => p.id === permit.id ? permit : p) } : z));
+      addNotification({
+        title: `Permit Revoked / Expired`,
+        desc: `${permit.type} permit ended for ${permit.zoneId.toUpperCase()}`,
+        type: 'yellow',
+        time: 'Just now',
+        zoneId: permit.zoneId
+      });
     });
 
     socket.on('shift-update', (shift: Shift) => {
       setShiftState(shift);
+      addNotification({
+        title: `Shift Updated: ${shift.type.toUpperCase()}`,
+        desc: `Shift synchronized with ${shift.supervisorCount} supervisor(s).`,
+        type: 'blue',
+        time: 'Just now'
+      });
     });
 
     socket.on('copilot-reply', (data: { zoneId: string; answer: string; messageId: string; timestamp: number }) => {
@@ -951,44 +1101,127 @@ export default function App() {
 
   const generatePDFReport = (zone: Zone) => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text(`SafeSphere AI Safety Audit - ${zone.name}`, 14, 20);
+    const now = new Date();
     
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-    doc.text(`System Config: SafeSphere Cognitive Fusion v2.4`, 14, 34);
+    // Header Banner Box
+    doc.setFillColor(15, 23, 42); // slate-900
+    doc.rect(0, 0, 210, 38, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("SAFESPHERE AI — SAFETY COMPLIANCE AUDIT", 14, 18);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text(`Generated: ${now.toLocaleString()}  |  System: SafeSphere Cognitive Fusion v2.4`, 14, 28);
+    doc.text(`Zone Target: ${zone.name.toUpperCase()} (${zone.id.toUpperCase()})`, 14, 34);
 
-    doc.setFontSize(14);
-    doc.text("1. Overall Risk Vector Profile", 14, 46);
-    doc.setFontSize(10);
-    doc.text(`Risk Score: ${zone.latestAssessment.riskScore}/100`, 18, 54);
-    doc.text(`Risk Evaluation: ${zone.latestAssessment.riskLevel.toUpperCase()}`, 18, 60);
+    // Section 1: Risk Profile Badge Box
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("1. Overall Risk Vector Assessment", 14, 48);
 
-    doc.setFontSize(14);
-    doc.text("2. Telemetry Diagnostics", 14, 72);
-    doc.setFontSize(10);
-    doc.text(`Gas Concentration: ${zone.sensors.gasLevel} ppm`, 18, 80);
-    doc.text(`Ambient Temperature: ${zone.sensors.temperature.toFixed(1)} °C`, 18, 86);
-    doc.text(`Line Barometric Pressure: ${zone.sensors.pressure.toFixed(2)} bar`, 18, 92);
-    doc.text(`Relative Humidity: ${zone.sensors.humidity.toFixed(1)} %`, 18, 98);
+    const isRed = zone.riskLevel === 'red';
+    const isYellow = zone.riskLevel === 'yellow';
+    
+    // Draw status badge
+    if (isRed) doc.setFillColor(254, 226, 226); // red-100
+    else if (isYellow) doc.setFillColor(254, 243, 199); // amber-100
+    else doc.setFillColor(209, 250, 229); // emerald-100
+    
+    doc.rect(14, 52, 182, 18, 'F');
+    doc.setDrawColor(isRed ? 239 : isYellow ? 245 : 16, isRed ? 68 : isYellow ? 158 : 185, isRed ? 68 : isYellow ? 11 : 129);
+    doc.rect(14, 52, 182, 18, 'S');
 
-    doc.setFontSize(14);
-    doc.text("3. Threat Grounded Observations", 14, 110);
-    doc.setFontSize(10);
-    let yPos = 118;
-    zone.latestAssessment.reasons.forEach((reason) => {
-      doc.text(`- ${reason}`, 18, yPos);
-      yPos += 6;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(isRed ? 185 : isYellow ? 180 : 6, isRed ? 28 : isYellow ? 83 : 95, isRed ? 28 : isYellow ? 9 : 70);
+    doc.text(`COMPOUND RISK RATING: ${zone.riskLevel.toUpperCase()} LEVEL (${zone.latestAssessment.riskScore}%)`, 20, 63);
+
+    // Section 2: Sensor Telemetry Diagnostics Table
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("2. SCADA Telemetry Diagnostics", 14, 82);
+
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.rect(14, 86, 182, 8, 'F');
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(71, 85, 105);
+    doc.text("METRIC PARAMETER", 20, 91.5);
+    doc.text("CURRENT VALUE", 100, 91.5);
+    doc.text("STATUS", 160, 91.5);
+
+    const metrics = [
+      { name: "Gas Concentration", val: `${zone.sensors.gasLevel} ppm`, status: zone.sensors.gasLevel > 50 ? "CRITICAL" : zone.sensors.gasLevel > 25 ? "WARNING" : "NORMAL" },
+      { name: "Ambient Temperature", val: `${zone.sensors.temperature.toFixed(1)} °C`, status: zone.sensors.temperature > 55 ? "CRITICAL" : zone.sensors.temperature > 45 ? "WARNING" : "NORMAL" },
+      { name: "Line Barometric Pressure", val: `${zone.sensors.pressure.toFixed(2)} bar`, status: zone.sensors.pressure > 3.8 ? "CRITICAL" : zone.sensors.pressure > 2.5 ? "WARNING" : "NORMAL" },
+      { name: "Relative Humidity", val: `${zone.sensors.humidity.toFixed(1)} %`, status: zone.sensors.humidity > 80 ? "HIGH" : "NOMINAL" },
+    ];
+
+    let rowY = 100;
+    doc.setFont("helvetica", "normal");
+    metrics.forEach(m => {
+      doc.setTextColor(30, 41, 59);
+      doc.text(m.name, 20, rowY);
+      doc.text(m.val, 100, rowY);
+      doc.setFont("helvetica", "bold");
+      if (m.status === 'CRITICAL') doc.setTextColor(220, 38, 38);
+      else if (m.status === 'WARNING' || m.status === 'HIGH') doc.setTextColor(217, 119, 6);
+      else doc.setTextColor(22, 163, 74);
+      doc.text(m.status, 160, rowY);
+      doc.setFont("helvetica", "normal");
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, rowY + 3, 196, rowY + 3);
+      rowY += 9;
     });
 
-    doc.setFontSize(14);
-    doc.text("4. Mandatory Supervisor Actions", 14, yPos + 6);
-    doc.setFontSize(10);
-    yPos += 14;
-    zone.latestAssessment.recommendedActions.forEach((action) => {
-      doc.text(`- ${action}`, 18, yPos);
-      yPos += 6;
+    // Section 3: Threat Reasons
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("3. Explainable AI Threat Observations", 14, rowY + 8);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(51, 65, 85);
+    rowY += 16;
+    zone.latestAssessment.reasons.forEach(r => {
+      doc.text(`[•] ${r}`, 18, rowY);
+      rowY += 6;
     });
+
+    // Section 4: Mandatory Actions
+    rowY += 4;
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("4. Mandatory Supervisor SOP Directives", 14, rowY);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(15, 23, 42);
+    rowY += 8;
+    zone.latestAssessment.recommendedActions.forEach(a => {
+      doc.text(`[✓] ${a}`, 18, rowY);
+      rowY += 6;
+    });
+
+    // Verification Footer Stamp
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, 260, 182, 22, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(14, 260, 182, 22, 'S');
+
+    doc.setFontSize(8);
+    doc.setFont("courier", "bold");
+    doc.setTextColor(100, 116, 139);
+    doc.text(`SAFESPHERE VERIFICATION HASH: OK_SS_${zone.id.toUpperCase()}_${Date.now()}`, 20, 268);
+    doc.text(`OFFICER SIGN-OFF: ___________________ (Plant Safety Supervisor)`, 20, 275);
 
     doc.save(`SafeSphere-Audit-${zone.id}-${Date.now()}.pdf`);
   };
@@ -1256,6 +1489,7 @@ export default function App() {
               { id: 'vision', label: 'AI Vision CCTV', icon: Video },
               { id: 'telemetry', label: 'Live Telemetry', icon: Activity },
               { id: 'risk-engine', label: 'Compound Assessment', icon: Shield },
+              { id: 'whatif', label: 'What-If Simulator', icon: FlaskConical },
               { id: 'heatmap', label: 'Plant Heatmap', icon: Layers },
               { id: 'incident-center', label: 'Incident & Permits', icon: AlertTriangle },
               { id: 'reports', label: 'Audit Reports', icon: FileText },
@@ -1308,6 +1542,7 @@ export default function App() {
                  currentTab === 'vision' ? 'AI Vision Hub' :
                  currentTab === 'telemetry' ? 'Industrial IoT Telemetry' :
                  currentTab === 'risk-engine' ? 'Compound Threat Evaluator' :
+                 currentTab === 'whatif' ? 'What-If Risk Simulator' :
                  currentTab === 'heatmap' ? 'Refinery Floor Heatmap' :
                  currentTab === 'incident-center' ? 'Incident & Permit Control' :
                  currentTab === 'reports' ? 'Compliance & Audit Logs' :
@@ -1321,13 +1556,24 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Current Shift */}
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-950 border border-slate-850 px-2.5 py-1.5 rounded-lg text-[10px] text-slate-350 font-bold uppercase tracking-wider">
-              <Clock className="w-3.5 h-3.5 text-blue-400" />
+            {/* Current Shift Badge (Interactive Modal Launcher) */}
+            <button
+              onClick={() => {
+                if (shiftState) {
+                  setNewShiftType(shiftState.type);
+                  setNewShiftSupervisors(shiftState.supervisorCount);
+                }
+                setShowShiftModal(true);
+              }}
+              className="hidden md:flex items-center gap-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-blue-500/50 transition px-2.5 py-1.5 rounded-lg text-[10px] text-slate-350 font-bold uppercase tracking-wider group cursor-pointer"
+              title="Click to manage plant shift handover"
+            >
+              <Clock className="w-3.5 h-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
               <span className="capitalize text-white">{shiftState?.type || 'Day'} Shift</span>
               <span className="text-slate-700">|</span>
-              <span className="text-slate-450">{shiftState?.supervisorCount || 3} Supervisors</span>
-            </div>
+              <span className="text-slate-400">{shiftState?.supervisorCount || 3} Sup.</span>
+              <span className="text-[8px] bg-blue-950 text-blue-300 border border-blue-800/40 px-1 rounded ml-1 font-mono font-normal">CHANGE</span>
+            </button>
 
             {/* Watch/Clock */}
             <div className="hidden sm:flex items-center gap-1 bg-slate-950 border border-slate-850 hover:bg-slate-900 px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-400">
@@ -1340,10 +1586,81 @@ export default function App() {
               <span className="text-slate-355">{socketConnected ? 'SYSTEM ONLINE' : 'SIM CONNECTED'}</span>
             </div>
 
-            {/* Notifications */}
-            <div className="relative p-2 bg-slate-950 border border-slate-855 rounded-lg hover:bg-slate-800 transition cursor-pointer">
-              <Bell className="w-4 h-4 text-slate-300" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+            {/* Interactive Notifications Bell Popover Dropdown */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="relative p-2 bg-slate-950 border border-slate-855 rounded-lg hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
+              >
+                <Bell className="w-4 h-4 text-slate-300" />
+                {notifications.some(n => !n.read) && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 border border-slate-900 text-white rounded-full text-[8px] font-black flex items-center justify-center animate-pulse">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              {/* Popover Dropdown */}
+              {isNotifOpen && (
+                <div className="absolute right-0 top-[120%] w-80 sm:w-96 glass-panel rounded-2xl border border-slate-800 shadow-2xl z-[9999] overflow-hidden animate-[fadeIn_0.15s_ease-out]">
+                  <div className="p-3.5 border-b border-slate-800 flex justify-between items-center bg-slate-950/80">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs font-black uppercase text-white tracking-wider">Safety Notifications</span>
+                      <span className="text-[9px] font-mono bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/40 font-bold">
+                        {notifications.filter(n => !n.read).length} NEW
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                        className="text-[9px] text-blue-400 hover:text-blue-200 font-bold transition uppercase"
+                      >
+                        Read All
+                      </button>
+                      <button
+                        onClick={() => setNotifications([])}
+                        className="text-[9px] text-slate-500 hover:text-slate-300 font-bold transition uppercase"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto flex flex-col divide-y divide-slate-900 scrollbar-thin">
+                    {notifications.length > 0 ? (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+                            if (n.zoneId) setSelectedZoneId(n.zoneId);
+                            setIsNotifOpen(false);
+                          }}
+                          className={`p-3 text-left transition cursor-pointer flex gap-3 items-start hover:bg-slate-900/80 ${
+                            !n.read ? 'bg-slate-900/40' : 'opacity-75'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
+                            n.type === 'red' ? 'bg-red-500 animate-ping' :
+                            n.type === 'yellow' ? 'bg-amber-400' :
+                            n.type === 'green' ? 'bg-emerald-400' : 'bg-blue-400'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center">
+                              <p className={`text-xs font-bold truncate ${!n.read ? 'text-white' : 'text-slate-300'}`}>{n.title}</p>
+                              <span className="text-[8px] font-mono text-slate-500 shrink-0 ml-2">{n.time}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-snug line-clamp-2">{n.desc}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-slate-500 text-xs">No active notifications</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* User profile */}
@@ -1366,6 +1683,7 @@ export default function App() {
             { id: 'vision', label: 'Vision', icon: Video },
             { id: 'telemetry', label: 'Telemetry', icon: Activity },
             { id: 'risk-engine', label: 'Risk', icon: Shield },
+            { id: 'whatif', label: 'What-If', icon: FlaskConical },
             { id: 'heatmap', label: 'Heatmap', icon: Layers },
             { id: 'incident-center', label: 'Incidents/Permits', icon: AlertTriangle },
             { id: 'reports', label: 'Reports', icon: FileText },
@@ -1785,11 +2103,25 @@ export default function App() {
                             <input
                               type="text"
                               placeholder="Ask copilot a quick question..."
+                              value={inputVal}
+                              onChange={(e) => setInputVal(e.target.value)}
                               className="flex-1 bg-slate-950 border border-slate-800 focus:border-blue-500/50 text-xs text-white placeholder-slate-600 rounded-lg px-3 py-2 outline-none transition"
-                              onKeyDown={(e) => { if (e.key === 'Enter') setCurrentTab('copilot'); }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && inputVal.trim()) {
+                                  setCurrentTab('copilot');
+                                  sendCopilotMessage();
+                                }
+                              }}
                             />
                             <button
-                              onClick={() => setCurrentTab('copilot')}
+                              onClick={() => {
+                                if (inputVal.trim()) {
+                                  setCurrentTab('copilot');
+                                  sendCopilotMessage();
+                                } else {
+                                  setCurrentTab('copilot');
+                                }
+                              }}
                               className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2.5 transition active:scale-95"
                             >
                               <Send className="w-3.5 h-3.5" />
@@ -2747,6 +3079,452 @@ export default function App() {
                 </div>
               )}
 
+              {/* TAB: WHAT-IF PROACTIVE RISK SIMULATOR */}
+              {currentTab === 'whatif' && (() => {
+                const liveZone = zones.find(z => z.id === whatIfZoneId);
+
+                const runWhatIfSimulation = async () => {
+                  setIsSimulating(true);
+                  setWhatIfResult(null);
+
+                  // Build active permits list for simulation
+                  const simulatedPermits = [];
+                  if (whatIfPermits.hotWork) simulatedPermits.push({ id: 'sim-hot', type: 'Hot Work', zoneId: whatIfZoneId, startTime: Date.now(), endTime: Date.now() + 7200000, status: 'active' as const });
+                  if (whatIfPermits.confinedSpace) simulatedPermits.push({ id: 'sim-cs', type: 'Confined Space Entry', zoneId: whatIfZoneId, startTime: Date.now(), endTime: Date.now() + 7200000, status: 'active' as const });
+
+                  if (socketConnected) {
+                    try {
+                      const resp = await fetch('http://localhost:5000/api/simulate-whatif', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          zoneId: whatIfZoneId,
+                          sensors: whatIfSensors,
+                          currentDetections: whatIfDetections,
+                          activePermits: simulatedPermits,
+                          shift: whatIfShift,
+                        })
+                      });
+                      if (resp.ok) {
+                        const data = await resp.json();
+                        setWhatIfResult(data.result);
+                        setWhatIfExecuted(true);
+                        setIsSimulating(false);
+                        return;
+                      }
+                    } catch (err) {
+                      console.error('What-If API failed, falling back to local engine:', err);
+                    }
+                  }
+
+                  // Offline local fallback
+                  const simResult = localRiskEngine({
+                    zoneId: whatIfZoneId,
+                    sensors: { ...whatIfSensors, timestamp: Date.now() },
+                    currentDetections: {
+                      personId: 'sim-worker',
+                      confidence: 0.95,
+                      timestamp: Date.now(),
+                      helmetDetected: whatIfDetections.helmetDetected,
+                      vestDetected: whatIfDetections.vestDetected,
+                      inRestrictedZone: whatIfDetections.inRestrictedZone,
+                      helmetViolations: whatIfDetections.helmetDetected ? 0 : 1,
+                      vestViolations: whatIfDetections.vestDetected ? 0 : 1,
+                      restrictedZoneEntries: whatIfDetections.inRestrictedZone ? 1 : 0,
+                    },
+                    activePermits: simulatedPermits,
+                    shift: { ...whatIfShift, startTime: '08:00', endTime: '16:00' },
+                  });
+                  setWhatIfResult(simResult);
+                  setWhatIfExecuted(true);
+                  setIsSimulating(false);
+                };
+
+                const liveScore = liveZone?.latestAssessment?.riskScore ?? 0;
+                const liveLevel = liveZone?.latestAssessment?.riskLevel ?? 'green';
+                const simScore = whatIfResult?.riskScore ?? 0;
+                const simLevel = whatIfResult?.riskLevel ?? 'green';
+
+                const riskLevelColor = (lvl: string) =>
+                  lvl === 'red' ? 'text-red-400' : lvl === 'yellow' ? 'text-amber-400' : 'text-emerald-400';
+                const riskGaugeStroke = (lvl: string) =>
+                  lvl === 'red' ? 'text-red-500' : lvl === 'yellow' ? 'text-amber-500' : 'text-emerald-500';
+
+                return (
+                  <div className="flex flex-col gap-6 text-left animate-[fadeIn_0.3s_ease-out]">
+
+                    {/* Header Banner */}
+                    <div className="glass-panel p-5 rounded-2xl border-l-[6px] border-l-purple-600 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                          <FlaskConical className="w-5 h-5 text-purple-400 animate-pulse" />
+                          What-If Proactive Risk Simulator
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">Construct a hypothetical scenario and evaluate its compound risk without affecting the live plant system.</p>
+                      </div>
+                      <span className="text-[10px] bg-purple-950/60 border border-purple-500/30 text-purple-300 px-3 py-1.5 rounded-lg font-mono font-bold uppercase tracking-wider">
+                        SANDBOX EVAL ENGINE
+                      </span>
+                    </div>
+
+                    {/* Main 2-col grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+                      {/* LEFT: Simulation Input Controls */}
+                      <div className="flex flex-col gap-5">
+
+                        {/* Zone selector */}
+                        <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
+                          <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-purple-400" />
+                            Target Zone
+                          </h4>
+                          <div className="flex bg-slate-950 p-1 border border-slate-800 rounded-xl">
+                            {[{id:'zone-a',label:'Zone A'},{id:'zone-b',label:'Zone B'},{id:'zone-c',label:'Zone C'}].map(z => (
+                              <button
+                                key={z.id}
+                                onClick={() => setWhatIfZoneId(z.id)}
+                                className={`flex-1 text-xs py-2 px-3 font-bold rounded-lg transition ${
+                                  whatIfZoneId === z.id ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                              >{z.label}</button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Sensor Sliders */}
+                        <div className="glass-panel p-5 rounded-2xl flex flex-col gap-5">
+                          <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-blue-400" />
+                            Hypothetical Sensor Values
+                          </h4>
+
+                          {/* Gas Level */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5"><Wind className="w-3.5 h-3.5 text-emerald-400" />Gas Concentration</span>
+                              <span className={`text-xs font-black font-mono px-2 py-0.5 rounded border ${
+                                whatIfSensors.gasLevel > 50 ? 'text-red-400 bg-red-950/50 border-red-500/30' :
+                                whatIfSensors.gasLevel > 25 ? 'text-amber-400 bg-amber-950/50 border-amber-500/30' :
+                                'text-emerald-400 bg-emerald-950/50 border-emerald-500/30'
+                              }`}>{whatIfSensors.gasLevel} ppm</span>
+                            </div>
+                            <input type="range" min="0" max="100" value={whatIfSensors.gasLevel}
+                              onChange={e => setWhatIfSensors(s => ({...s, gasLevel: Number(e.target.value)}))}
+                              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-emerald-500 bg-slate-800"
+                            />
+                            <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>0 ppm</span><span>50 WARN</span><span>100 ppm</span></div>
+                          </div>
+
+                          {/* Temperature */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5"><Thermometer className="w-3.5 h-3.5 text-orange-400" />Temperature</span>
+                              <span className={`text-xs font-black font-mono px-2 py-0.5 rounded border ${
+                                whatIfSensors.temperature > 55 ? 'text-red-400 bg-red-950/50 border-red-500/30' :
+                                whatIfSensors.temperature > 45 ? 'text-amber-400 bg-amber-950/50 border-amber-500/30' :
+                                'text-emerald-400 bg-emerald-950/50 border-emerald-500/30'
+                              }`}>{whatIfSensors.temperature.toFixed(0)}°C</span>
+                            </div>
+                            <input type="range" min="10" max="100" value={whatIfSensors.temperature}
+                              onChange={e => setWhatIfSensors(s => ({...s, temperature: Number(e.target.value)}))}
+                              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-orange-500 bg-slate-800"
+                            />
+                            <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>10°C</span><span>45 WARN</span><span>100°C</span></div>
+                          </div>
+
+                          {/* Pressure */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5"><Gauge className="w-3.5 h-3.5 text-blue-400" />Line Pressure</span>
+                              <span className={`text-xs font-black font-mono px-2 py-0.5 rounded border ${
+                                whatIfSensors.pressure > 3.8 ? 'text-red-400 bg-red-950/50 border-red-500/30' :
+                                whatIfSensors.pressure > 2.5 ? 'text-amber-400 bg-amber-950/50 border-amber-500/30' :
+                                'text-emerald-400 bg-emerald-950/50 border-emerald-500/30'
+                              }`}>{whatIfSensors.pressure.toFixed(2)} bar</span>
+                            </div>
+                            <input type="range" min="0" max="6" step="0.05" value={whatIfSensors.pressure}
+                              onChange={e => setWhatIfSensors(s => ({...s, pressure: Number(e.target.value)}))}
+                              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-500 bg-slate-800"
+                            />
+                            <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>0 bar</span><span>2.5 WARN</span><span>6 bar</span></div>
+                          </div>
+                        </div>
+
+                        {/* PPE & Conditions Toggles */}
+                        <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
+                          <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-amber-400" />
+                            PPE & Zone Conditions
+                          </h4>
+
+                          {([
+                            { key: 'helmetDetected', label: 'Helmet PPE Compliant', desc: 'All workers wearing hard helmets', color: 'emerald' },
+                            { key: 'vestDetected', label: 'Hi-Vis Vest Compliant', desc: 'All workers wearing safety vests', color: 'emerald' },
+                            { key: 'inRestrictedZone', label: 'Restricted Zone Entry', desc: 'Unauthorized person in confined area', color: 'red' },
+                          ] as const).map(item => (
+                            <div key={item.key} className="flex items-center justify-between bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                              <div>
+                                <p className="text-xs font-bold text-white">{item.label}</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">{item.desc}</p>
+                              </div>
+                              <button
+                                onClick={() => setWhatIfDetections(d => ({...d, [item.key]: !d[item.key]}))}
+                                className={`relative w-11 h-6 rounded-full border transition-all duration-200 ${
+                                  whatIfDetections[item.key]
+                                    ? (item.color === 'red' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500')
+                                    : 'bg-slate-800 border-slate-700'
+                                }`}
+                              >
+                                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                                  whatIfDetections[item.key] ? 'left-5' : 'left-0.5'
+                                }`} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Permit & Shift Toggles */}
+                        <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
+                          <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                            <FileSignature className="w-4 h-4 text-blue-400" />
+                            Permits & Shift Configuration
+                          </h4>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Hot Work */}
+                            <button
+                              onClick={() => setWhatIfPermits(p => ({...p, hotWork: !p.hotWork}))}
+                              className={`flex flex-col items-start p-3 rounded-xl border transition-all ${
+                                whatIfPermits.hotWork ? 'bg-amber-950/30 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.15)]' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-[10px] font-black uppercase text-slate-300">Hot Work</span>
+                                <span className={`w-2 h-2 rounded-full ${ whatIfPermits.hotWork ? 'bg-amber-400' : 'bg-slate-700' }`} />
+                              </div>
+                              <span className="text-[9px] text-slate-500 mt-1">Welding / Cutting permit</span>
+                            </button>
+
+                            {/* Confined Space */}
+                            <button
+                              onClick={() => setWhatIfPermits(p => ({...p, confinedSpace: !p.confinedSpace}))}
+                              className={`flex flex-col items-start p-3 rounded-xl border transition-all ${
+                                whatIfPermits.confinedSpace ? 'bg-blue-950/30 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.15)]' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-[10px] font-black uppercase text-slate-300">Confined Space</span>
+                                <span className={`w-2 h-2 rounded-full ${ whatIfPermits.confinedSpace ? 'bg-blue-400' : 'bg-slate-700' }`} />
+                              </div>
+                              <span className="text-[9px] text-slate-500 mt-1">Enclosed vessel entry</span>
+                            </button>
+                          </div>
+
+                          {/* Shift type */}
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Shift Type</span>
+                            <div className="flex bg-slate-950 p-1 border border-slate-800 rounded-xl">
+                              {(['day','night','transition'] as const).map(t => (
+                                <button key={t} onClick={() => setWhatIfShift(s => ({...s, type: t}))}
+                                  className={`flex-1 text-xs py-2 font-bold rounded-lg capitalize transition ${
+                                    whatIfShift.type === t ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                                  }`}
+                                >{t}</button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Supervisor count */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Supervisor Count</span>
+                              <span className={`text-xs font-black font-mono px-2 py-0.5 rounded border ${
+                                whatIfShift.supervisorCount < 2 ? 'text-red-400 bg-red-950/50 border-red-500/30' : 'text-emerald-400 bg-emerald-950/50 border-emerald-500/30'
+                              }`}>{whatIfShift.supervisorCount}</span>
+                            </div>
+                            <input type="range" min="1" max="8" value={whatIfShift.supervisorCount}
+                              onChange={e => setWhatIfShift(s => ({...s, supervisorCount: Number(e.target.value)}))}
+                              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-500 bg-slate-800"
+                            />
+                            <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>1 (Danger)</span><span>4 (Safe)</span><span>8</span></div>
+                          </div>
+                        </div>
+
+                        {/* Execute button */}
+                        <button
+                          onClick={runWhatIfSimulation}
+                          disabled={isSimulating}
+                          className={`w-full py-4 rounded-2xl text-sm font-black tracking-wider uppercase transition flex items-center justify-center gap-2 shadow-lg ${
+                            isSimulating
+                              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                              : 'bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]'
+                          }`}
+                        >
+                          {isSimulating ? (
+                            <><Activity className="w-4 h-4 animate-spin" /> Evaluating Compound Risk...</>
+                          ) : (
+                            <><Zap className="w-4 h-4 fill-current" /> Execute Sandbox Evaluation</>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* RIGHT: Comparison Results Panel */}
+                      <div className="flex flex-col gap-5">
+
+                        {/* Live vs Simulated Gauge comparison */}
+                        <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
+                          <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-blue-400" />
+                            Live vs. Simulated Risk Comparison
+                          </h4>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Live Risk Gauge */}
+                            <div className={`flex flex-col items-center p-4 rounded-xl border ${
+                              liveLevel === 'red' ? 'border-red-500/40 bg-red-950/10' :
+                              liveLevel === 'yellow' ? 'border-amber-500/40 bg-amber-950/10' :
+                              'border-emerald-500/30 bg-emerald-950/10'
+                            }`}>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Live Risk</span>
+                              <div className="relative w-24 h-24 flex items-center justify-center">
+                                <svg className="w-full h-full transform -rotate-90">
+                                  <circle cx="48" cy="48" r="38" className="stroke-slate-800 fill-none" strokeWidth="7" />
+                                  <circle cx="48" cy="48" r="38"
+                                    className={`fill-none stroke-current ${riskGaugeStroke(liveLevel)}`}
+                                    strokeWidth="7" strokeLinecap="round"
+                                    strokeDasharray={239}
+                                    strokeDashoffset={239 - (239 * liveScore) / 100}
+                                    style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                                  />
+                                </svg>
+                                <div className="absolute text-center">
+                                  <span className="text-2xl font-black text-white font-mono">{liveScore}</span>
+                                  <p className="text-[8px] text-slate-500 font-bold uppercase">RISK %</p>
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-black uppercase mt-2 tracking-wider ${riskLevelColor(liveLevel)}`}>
+                                {liveLevel === 'red' ? '⚠ CRITICAL' : liveLevel === 'yellow' ? '⚡ ELEVATED' : '✓ NOMINAL'}
+                              </span>
+                            </div>
+
+                            {/* Simulated Risk Gauge */}
+                            <div className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-500 ${
+                              !whatIfExecuted ? 'border-slate-800 bg-slate-950/40' :
+                              simLevel === 'red' ? 'border-red-500/60 bg-red-950/15 shadow-[0_0_20px_rgba(239,68,68,0.1)]' :
+                              simLevel === 'yellow' ? 'border-amber-500/50 bg-amber-950/10' :
+                              'border-emerald-500/40 bg-emerald-950/10'
+                            }`}>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Simulated Risk</span>
+                              {isSimulating ? (
+                                <div className="w-24 h-24 flex items-center justify-center">
+                                  <Activity className="w-8 h-8 text-purple-400 animate-spin" />
+                                </div>
+                              ) : (
+                                <div className="relative w-24 h-24 flex items-center justify-center">
+                                  <svg className="w-full h-full transform -rotate-90">
+                                    <circle cx="48" cy="48" r="38" className="stroke-slate-800 fill-none" strokeWidth="7" />
+                                    <circle cx="48" cy="48" r="38"
+                                      className={`fill-none stroke-current ${ whatIfExecuted ? riskGaugeStroke(simLevel) : 'text-slate-700' }`}
+                                      strokeWidth="7" strokeLinecap="round"
+                                      strokeDasharray={239}
+                                      strokeDashoffset={whatIfExecuted ? 239 - (239 * simScore) / 100 : 239}
+                                      style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                                    />
+                                  </svg>
+                                  <div className="absolute text-center">
+                                    <span className={`text-2xl font-black font-mono ${ whatIfExecuted ? 'text-white' : 'text-slate-700' }`}>
+                                      {whatIfExecuted ? simScore : '--'}
+                                    </span>
+                                    <p className="text-[8px] text-slate-500 font-bold uppercase">RISK %</p>
+                                  </div>
+                                </div>
+                              )}
+                              <span className={`text-[10px] font-black uppercase mt-2 tracking-wider ${ whatIfExecuted ? riskLevelColor(simLevel) : 'text-slate-700' }`}>
+                                {!whatIfExecuted ? 'PENDING' : simLevel === 'red' ? '⚠ CRITICAL' : simLevel === 'yellow' ? '⚡ ELEVATED' : '✓ NOMINAL'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Delta pill */}
+                          {whatIfExecuted && (
+                            <div className={`flex items-center justify-center gap-2 py-2 rounded-xl border text-xs font-black uppercase tracking-wider ${
+                              simScore > liveScore
+                                ? 'text-red-400 bg-red-950/30 border-red-500/30'
+                                : simScore < liveScore
+                                ? 'text-emerald-400 bg-emerald-950/30 border-emerald-500/30'
+                                : 'text-slate-400 bg-slate-900 border-slate-800'
+                            }`}>
+                              {simScore > liveScore ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              {simScore > liveScore
+                                ? `Simulated risk is +${simScore - liveScore} points HIGHER — Scenario is DANGEROUS`
+                                : simScore < liveScore
+                                ? `Simulated risk is ${liveScore - simScore} points LOWER — Scenario is SAFER`
+                                : 'No change in compound risk score'
+                              }
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Reasons breakdown */}
+                        {whatIfExecuted && whatIfResult && (
+                          <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4 animate-[fadeIn_0.3s_ease-out]">
+                            <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase flex items-center gap-2 border-b border-slate-800 pb-2.5">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              Simulated Threat Analysis
+                            </h4>
+                            <div className="flex flex-col gap-2.5">
+                              {whatIfResult.reasons.map((r, i) => (
+                                <div key={i} className={`flex gap-2.5 items-start text-xs p-3 rounded-xl border ${
+                                  simLevel === 'red' ? 'bg-red-950/10 border-red-900/30' :
+                                  simLevel === 'yellow' ? 'bg-amber-950/10 border-amber-900/30' :
+                                  'bg-slate-900/60 border-slate-800'
+                                }`}>
+                                  <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                                    simLevel === 'red' ? 'text-red-400' : simLevel === 'yellow' ? 'text-amber-400' : 'text-blue-400'
+                                  }`} />
+                                  <p className="text-slate-300 leading-relaxed">{r}</p>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="border-t border-slate-800 pt-3 flex flex-col gap-2">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Recommended Actions</span>
+                              {whatIfResult.recommendedActions.map((a, i) => (
+                                <div key={i} className="flex gap-2 items-start text-xs p-3 bg-blue-950/10 border border-blue-900/30 rounded-xl">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+                                  <p className="text-blue-200 font-bold leading-relaxed">{a}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Idle state */}
+                        {!whatIfExecuted && !isSimulating && (
+                          <div className="glass-panel p-10 rounded-2xl flex flex-col items-center justify-center text-center text-slate-600 border border-dashed border-slate-800">
+                            <FlaskConical className="w-10 h-10 mb-3 text-slate-700" />
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Simulation Not Yet Run</p>
+                            <p className="text-[11px] mt-1 max-w-xs">Adjust parameters on the left and click "Execute Sandbox Evaluation" to compute the simulated compound risk score.</p>
+                          </div>
+                        )}
+
+                        {/* Reset */}
+                        {whatIfExecuted && (
+                          <button
+                            onClick={() => { setWhatIfResult(null); setWhatIfExecuted(false); setWhatIfSensors({gasLevel:10,temperature:30,pressure:1.5,humidity:45}); setWhatIfDetections({helmetDetected:true,vestDetected:true,inRestrictedZone:false}); setWhatIfPermits({hotWork:false,confinedSpace:false}); setWhatIfShift({type:'day',supervisorCount:3}); }}
+                            className="w-full bg-slate-850 hover:bg-slate-800 active:scale-95 border border-slate-700 text-slate-300 py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-blue-400" /> Reset Sandbox
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
+
               {/* TAB 5: HEATMAP DETAILED PAGE */}
               {currentTab === 'heatmap' && (
                 <div className="flex flex-col gap-5 text-left animate-[fadeIn_0.3s_ease-out]">
@@ -2911,28 +3689,101 @@ export default function App() {
                   <div className="lg:col-span-5 flex flex-col gap-6">
                     {/* Active Warnings Log */}
                     <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
-                      <h3 className="text-xs font-black tracking-wide text-slate-400 uppercase flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
-                        Active Safety Alarms Log (CCTV / Sensor)
-                      </h3>
+                      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 className="text-xs font-black tracking-wide text-slate-300 uppercase flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          Live Safety Alarms Log ({notifications.length})
+                        </h3>
+                        <button
+                          onClick={() => {
+                            addNotification({
+                              title: 'Simulated High-Gas Breach',
+                              desc: 'Gas concentration surpassed 55 ppm in Zone C',
+                              type: 'red',
+                              time: 'Just now',
+                              zoneId: 'zone-c'
+                            });
+                          }}
+                          className="text-[9px] bg-red-950/60 border border-red-500/30 text-red-400 hover:bg-red-900/60 px-2 py-1 rounded font-bold uppercase transition active:scale-95"
+                        >
+                          + Trigger Test Alarm
+                        </button>
+                      </div>
 
-                      <div className="flex flex-col gap-2 mt-1">
-                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-855 flex flex-col gap-1 text-xs">
-                          <div className="flex justify-between items-center">
-                            <span className="font-black text-white font-bold uppercase text-[10px]">Zone C pressure critical</span>
-                            <span className="text-[8px] bg-red-950/60 text-red-500 border border-red-500/20 px-2 py-0.5 rounded font-mono font-bold">ALARM</span>
-                          </div>
-                          <p className="text-slate-405 text-[11px] leading-relaxed">Pressure telemetry exceeded normal thresholds (3.8 bar cutoff limit)</p>
-                          <span className="text-[8px] text-slate-500 mt-1">Received 5 mins ago</span>
+                      <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto scrollbar-thin">
+                        {notifications.length > 0 ? (
+                          notifications.map(n => (
+                            <div key={n.id} className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800 flex flex-col gap-1.5 text-xs hover:border-slate-700 transition">
+                              <div className="flex justify-between items-center">
+                                <span className="font-black text-white uppercase text-[10px] flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${
+                                    n.type === 'red' ? 'bg-red-500 animate-ping' :
+                                    n.type === 'yellow' ? 'bg-amber-400' :
+                                    n.type === 'green' ? 'bg-emerald-400' : 'bg-blue-400'
+                                  }`} />
+                                  {n.title}
+                                </span>
+                                <span className={`text-[8px] border px-2 py-0.5 rounded font-mono font-bold uppercase ${
+                                  n.type === 'red' ? 'bg-red-950/80 text-red-400 border-red-500/30' :
+                                  n.type === 'yellow' ? 'bg-amber-950/80 text-amber-400 border-amber-500/30' :
+                                  n.type === 'green' ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/30' :
+                                  'bg-blue-950/80 text-blue-400 border-blue-500/30'
+                                }`}>
+                                  {n.type === 'red' ? 'ALARM' : n.type === 'yellow' ? 'WARNING' : 'INFO'}
+                                </span>
+                              </div>
+                              <p className="text-slate-400 text-[11px] leading-relaxed">{n.desc}</p>
+                              <div className="flex justify-between items-center mt-0.5 text-[9px]">
+                                <span className="text-slate-500 font-mono">{n.time}</span>
+                                {n.zoneId && (
+                                  <button
+                                    onClick={() => setSelectedZoneId(n.zoneId!)}
+                                    className="text-blue-400 hover:text-blue-200 font-bold uppercase"
+                                  >
+                                    View {n.zoneId.toUpperCase()} →
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-slate-500 text-xs">No active safety alarms</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Shift Management Control Card */}
+                    <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4 border border-blue-500/20 bg-blue-950/10">
+                      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div>
+                          <h3 className="text-xs font-black tracking-wide text-white uppercase flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-400" />
+                            Active Shift Management
+                          </h3>
+                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">Supervisor Handover Register</p>
                         </div>
+                        <button
+                          onClick={() => {
+                            if (shiftState) {
+                              setNewShiftType(shiftState.type);
+                              setNewShiftSupervisors(shiftState.supervisorCount);
+                            }
+                            setShowShiftModal(true);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold py-2 px-3 rounded-lg transition shadow"
+                        >
+                          Change Shift
+                        </button>
+                      </div>
 
-                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850 flex flex-col gap-1 text-xs">
-                          <div className="flex justify-between items-center">
-                            <span className="font-black text-white font-bold uppercase text-[10px]">Zone A PPE violation</span>
-                            <span className="text-[8px] bg-amber-955/65 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded font-mono font-bold">WARNING</span>
-                          </div>
-                          <p className="text-slate-405 text-[11px] leading-relaxed">AI vision module detected 1 employee missing hard-helmet protection PPE</p>
-                          <span className="text-[8px] text-slate-505 mt-1">Received 12 mins ago</span>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="bg-slate-950/80 p-3 border border-slate-800 rounded-xl">
+                          <span className="text-[9px] text-slate-500 uppercase font-bold">Shift Designation</span>
+                          <p className="text-sm font-black text-white capitalize mt-1">{shiftState?.type || 'Day'} Shift</p>
+                        </div>
+                        <div className="bg-slate-950/80 p-3 border border-slate-800 rounded-xl">
+                          <span className="text-[9px] text-slate-500 uppercase font-bold">Supervisors On Duty</span>
+                          <p className="text-sm font-black text-white font-mono mt-1">{shiftState?.supervisorCount || 3} Officers</p>
                         </div>
                       </div>
                     </div>
@@ -2941,7 +3792,7 @@ export default function App() {
                     <div className="glass-panel p-5 rounded-2xl flex flex-col gap-4">
                       <h3 className="text-xs font-black tracking-wide text-slate-400 uppercase flex items-center gap-2">
                         <Layers className="w-4 h-4 text-emerald-450" />
-                        Violation & event summaries (24h)
+                        Violation & Event Summaries (24h)
                       </h3>
 
                       <div className="space-y-3 bg-slate-955/60 border border-slate-850 p-4 rounded-xl">
@@ -2949,30 +3800,30 @@ export default function App() {
                         <div className="flex flex-col gap-1">
                           <div className="flex justify-between text-[10px]">
                             <span className="text-slate-400">PPE Hard Helmet Misses</span>
-                            <span className="text-white font-mono font-medium">14 Alerts</span>
+                            <span className="text-white font-mono font-medium">{notifications.filter(n => n.title.includes('PPE') || n.title.includes('Helmet')).length + 2} Alerts</span>
                           </div>
                           <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-blue-500 h-full rounded-full" style={{ width: '65%' }}></div>
+                            <div className="bg-blue-500 h-full rounded-full" style={{ width: '45%' }}></div>
                           </div>
                         </div>
                         {/* Bar 2 */}
                         <div className="flex flex-col gap-1">
                           <div className="flex justify-between text-[10px]">
                             <span className="text-slate-400">Gas Alarm Threshold Exceedances</span>
-                            <span className="text-white font-mono font-medium">3 Incidents</span>
+                            <span className="text-white font-mono font-medium">{notifications.filter(n => n.title.includes('Gas') || n.title.includes('Pressure')).length + 1} Incidents</span>
                           </div>
                           <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-amber-505 h-full rounded-full" style={{ width: '25%' }}></div>
+                            <div className="bg-amber-500 h-full rounded-full" style={{ width: '30%' }}></div>
                           </div>
                         </div>
                         {/* Bar 3 */}
                         <div className="flex flex-col gap-1">
                           <div className="flex justify-between text-[10px]">
-                            <span className="text-slate-405">Confined boundaries Intrusions</span>
-                            <span className="text-white font-mono font-medium">8 Violations</span>
+                            <span className="text-slate-405">Confined Boundaries Intrusions</span>
+                            <span className="text-white font-mono font-medium">{zones.filter(z => z.riskLevel === 'red').length * 2 + 1} Violations</span>
                           </div>
                           <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-red-500 h-full rounded-full" style={{ width: '45%' }}></div>
+                            <div className="bg-red-500 h-full rounded-full" style={{ width: '25%' }}></div>
                           </div>
                         </div>
                       </div>
@@ -3180,32 +4031,168 @@ export default function App() {
 
               {/* TAB 10: SETTINGS PAGE */}
               {currentTab === 'settings' && (
-                <div className="glass-panel p-5 rounded-2xl text-left animate-[fadeIn_0.3s_ease-out] flex flex-col gap-5">
+                <div className="glass-panel p-5 rounded-2xl text-left animate-[fadeIn_0.3s_ease-out] flex flex-col gap-6">
                   <div>
-                    <h3 className="text-xs font-black tracking-wide text-slate-400 uppercase">SafeSphere Platform Threshold configurations</h3>
-                    <p className="text-[10px] text-slate-550 font-bold uppercase mt-1">Configure warning thresholds for simulated telemetry fields</p>
+                    <h3 className="text-xs font-black tracking-wide text-white uppercase flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-blue-400" />
+                      SafeSphere Platform Threshold Configuration
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Configure live alert thresholds — changes apply to all sensor status indicators instantly</p>
                   </div>
 
-                  <div className="flex flex-col gap-4 max-w-lg mt-2">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between text-xs font-bold text-slate-300">
-                        <span>Gas Concentration Warning cap</span>
-                        <span className="font-mono text-blue-400">50 ppm</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+
+                    {/* Gas Thresholds */}
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                      <div className="flex items-center gap-2">
+                        <Wind className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-black text-slate-300 uppercase tracking-wider">Gas Concentration</span>
                       </div>
-                      <input type="range" min="20" max="100" defaultValue="50" className="accent-blue-500 w-full h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer" />
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Warning Threshold</span>
+                          <span className="font-mono text-amber-400">{thresholds.gasWarning} ppm</span>
+                        </div>
+                        <input type="range" min="10" max="80" value={thresholds.gasWarning}
+                          onChange={e => setThresholds(t => ({...t, gasWarning: Number(e.target.value)}))}
+                          className="accent-amber-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>10</span><span>80 ppm</span></div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Critical Threshold</span>
+                          <span className="font-mono text-red-400">{thresholds.gasCritical} ppm</span>
+                        </div>
+                        <input type="range" min="20" max="100" value={thresholds.gasCritical}
+                          onChange={e => setThresholds(t => ({...t, gasCritical: Number(e.target.value)}))}
+                          className="accent-red-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>20</span><span>100 ppm</span></div>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 mt-2">
-                      <div className="flex justify-between text-xs font-bold text-slate-300">
-                        <span>Temperature Warning limit</span>
-                        <span className="font-mono text-blue-400">45°C</span>
+                    {/* Temperature Thresholds */}
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                      <div className="flex items-center gap-2">
+                        <Thermometer className="w-4 h-4 text-orange-400" />
+                        <span className="text-xs font-black text-slate-300 uppercase tracking-wider">Temperature</span>
                       </div>
-                      <input type="range" min="30" max="80" defaultValue="45" className="accent-blue-500 w-full h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer" />
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Warning Threshold</span>
+                          <span className="font-mono text-amber-400">{thresholds.tempWarning}°C</span>
+                        </div>
+                        <input type="range" min="30" max="70" value={thresholds.tempWarning}
+                          onChange={e => setThresholds(t => ({...t, tempWarning: Number(e.target.value)}))}
+                          className="accent-amber-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>30°C</span><span>70°C</span></div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Critical Threshold</span>
+                          <span className="font-mono text-red-400">{thresholds.tempCritical}°C</span>
+                        </div>
+                        <input type="range" min="40" max="100" value={thresholds.tempCritical}
+                          onChange={e => setThresholds(t => ({...t, tempCritical: Number(e.target.value)}))}
+                          className="accent-red-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>40°C</span><span>100°C</span></div>
+                      </div>
                     </div>
 
-                    <div className="bg-slate-950/80 p-4 border border-slate-850 rounded-xl text-xs mt-3 flex flex-col gap-1 text-slate-400">
-                      <p><strong>SafeSphere Instance Version:</strong> v2.4-cognitive-fusion</p>
-                      <p><strong>Socket connection endpoint:</strong> http://localhost:5000</p>
+                    {/* Pressure Thresholds */}
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                      <div className="flex items-center gap-2">
+                        <Gauge className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs font-black text-slate-300 uppercase tracking-wider">Line Pressure</span>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Warning Threshold</span>
+                          <span className="font-mono text-amber-400">{thresholds.pressWarning.toFixed(1)} bar</span>
+                        </div>
+                        <input type="range" min="1" max="5" step="0.1" value={thresholds.pressWarning}
+                          onChange={e => setThresholds(t => ({...t, pressWarning: Number(e.target.value)}))}
+                          className="accent-amber-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>1.0</span><span>5.0 bar</span></div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Critical Threshold</span>
+                          <span className="font-mono text-red-400">{thresholds.pressCritical.toFixed(1)} bar</span>
+                        </div>
+                        <input type="range" min="2" max="6" step="0.1" value={thresholds.pressCritical}
+                          onChange={e => setThresholds(t => ({...t, pressCritical: Number(e.target.value)}))}
+                          className="accent-red-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>2.0</span><span>6.0 bar</span></div>
+                      </div>
+                    </div>
+
+                    {/* Humidity Thresholds */}
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-black text-slate-300 uppercase tracking-wider">Humidity</span>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Warning Threshold (High)</span>
+                          <span className="font-mono text-amber-400">{thresholds.humidWarning}%</span>
+                        </div>
+                        <input type="range" min="50" max="90" value={thresholds.humidWarning}
+                          onChange={e => setThresholds(t => ({...t, humidWarning: Number(e.target.value)}))}
+                          className="accent-amber-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>50%</span><span>90%</span></div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-slate-400">Critical Threshold (High)</span>
+                          <span className="font-mono text-red-400">{thresholds.humidCritical}%</span>
+                        </div>
+                        <input type="range" min="70" max="100" value={thresholds.humidCritical}
+                          onChange={e => setThresholds(t => ({...t, humidCritical: Number(e.target.value)}))}
+                          className="accent-red-500 w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono"><span>70%</span><span>100%</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live preview status */}
+                  <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Live Threshold Preview (Current Zone: {selectedZone?.name ?? 'None selected'})</span>
+                    {selectedZone ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                          { label: 'Gas', val: selectedZone.sensors.gasLevel, unit: 'ppm', status: makeStatusHelpers(thresholds).getGasStatus(selectedZone.sensors.gasLevel) },
+                          { label: 'Temp', val: selectedZone.sensors.temperature, unit: '°C', status: makeStatusHelpers(thresholds).getTempStatus(selectedZone.sensors.temperature) },
+                          { label: 'Pressure', val: selectedZone.sensors.pressure, unit: 'bar', status: makeStatusHelpers(thresholds).getPressStatus(selectedZone.sensors.pressure) },
+                          { label: 'Humidity', val: selectedZone.sensors.humidity, unit: '%', status: makeStatusHelpers(thresholds).getHumidStatus(selectedZone.sensors.humidity) },
+                        ].map(item => (
+                          <div key={item.label} className={`p-3 rounded-xl border flex flex-col gap-1 ${item.status.color}`}>
+                            <span className="text-[9px] font-bold uppercase opacity-70">{item.label}</span>
+                            <span className="text-sm font-black font-mono">{typeof item.val === 'number' ? item.val.toFixed(1) : item.val} {item.unit}</span>
+                            <span className="text-[9px] font-bold uppercase">{item.status.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600">Select a zone on the dashboard to preview live threshold status.</p>
+                    )}
+                  </div>
+
+                  {/* System info */}
+                  <div className="bg-slate-950/80 p-4 border border-slate-800 rounded-xl text-xs flex flex-col gap-2 text-slate-400">
+                    <p><strong className="text-slate-300">SafeSphere Instance:</strong> v2.4-cognitive-fusion</p>
+                    <p><strong className="text-slate-300">Socket Endpoint:</strong> http://localhost:5000</p>
+                    <p><strong className="text-slate-300">AI Engine:</strong> {socketConnected ? 'Claude 3.5 Sonnet / Gemini 2.5 Flash (API keys required in backend/.env)' : 'Offline — Rule-Based Fallback Engine'}</p>
+                    <div className="mt-2 p-3 bg-amber-950/30 border border-amber-500/25 rounded-lg">
+                      <p className="text-amber-400 font-bold text-[11px]">⚠ To enable full AI reasoning: Add your API key to <code className="font-mono bg-slate-900 px-1 rounded">backend/.env</code> — set <code className="font-mono bg-slate-900 px-1 rounded">GEMINI_API_KEY</code> or <code className="font-mono bg-slate-900 px-1 rounded">ANTHROPIC_API_KEY</code>, then restart the backend server.</p>
                     </div>
                   </div>
                 </div>
@@ -3218,6 +4205,98 @@ export default function App() {
 
 
 {/* 3. SUBCOMPONENTS / MODALS */}
+      {/* SHIFT HANDOVER MODAL */}
+      {showShiftModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-5 flex flex-col gap-4 animate-[scaleIn_0.2s_ease-out]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h4 className="text-base font-bold text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-400" /> Plant Shift Handover
+              </h4>
+              <button 
+                onClick={() => setShowShiftModal(false)}
+                className="text-slate-400 hover:text-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const type = newShiftType;
+                const supervisorCount = newShiftSupervisors;
+                if (socketConnected) {
+                  fetch('http://localhost:5000/api/shift', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, supervisorCount })
+                  }).catch(console.error);
+                } else {
+                  setShiftState({ type, supervisorCount, startTime: '08:00', endTime: '16:00' });
+                }
+                addNotification({
+                  title: `Shift Handover: ${type.toUpperCase()}`,
+                  desc: `Active shift updated to ${type} with ${supervisorCount} supervisor(s).`,
+                  type: 'blue',
+                  time: 'Just now'
+                });
+                setShowShiftModal(false);
+              }}
+              className="flex flex-col gap-4"
+            >
+              <div className="flex flex-col gap-1 text-left">
+                <label className="text-[11px] text-slate-400 font-bold uppercase">Shift Designation</label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {(['day', 'night', 'transition'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setNewShiftType(t)}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold capitalize border transition ${
+                        newShiftType === t
+                          ? 'bg-blue-600 border-blue-500 text-white shadow'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1 text-left">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] text-slate-400 font-bold uppercase">Supervisors On Duty</label>
+                  <span className={`text-xs font-mono font-black px-2 py-0.5 rounded border ${
+                    newShiftSupervisors < 2 ? 'text-red-400 bg-red-950/50 border-red-500/30' : 'text-emerald-400 bg-emerald-950/50 border-emerald-500/30'
+                  }`}>{newShiftSupervisors} Officers</span>
+                </div>
+                <input
+                  type="range" min="1" max="8"
+                  value={newShiftSupervisors}
+                  onChange={(e) => setNewShiftSupervisors(parseInt(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-500 bg-slate-800 mt-2"
+                />
+                <div className="flex justify-between text-[9px] text-slate-600 font-mono mt-1">
+                  <span>1 (Understaffed)</span>
+                  <span>4 (Standard)</span>
+                  <span>8</span>
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 mt-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg active:scale-95 uppercase tracking-wider"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Confirm & Register Handover
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* WORK PERMIT APPROVAL MODAL */}
       {showPermitModal && selectedZone && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="glass-panel w-full max-w-sm rounded-2xl p-5 flex flex-col gap-4 animate-[scaleIn_0.2s_ease-out]">
@@ -3263,7 +4342,7 @@ export default function App() {
 
               <button 
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 mt-2 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 mt-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow"
               >
                 <CheckCircle2 className="w-4 h-4" /> Formally Approve & Issue
               </button>
